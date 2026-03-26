@@ -1,154 +1,144 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Mapa Interativo - Sobral</title>
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-  <!-- VectorGrid -->
-  <script src="https://unpkg.com/leaflet.vectorgrid/dist/Leaflet.VectorGrid.min.js"></script>
-
-  <style>
-    #map { height: 85vh; }
-
-    .search-box {
-      position: absolute;
-      top: 10px;
-      left: 50px;
-      z-index: 1000;
-      background: white;
-      padding: 8px;
-      border-radius: 5px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
-    }
-  </style>
-</head>
-
-<body>
-
-<h3>
-  <a href="http://172.31.2.31:7800" target="_blank">
-    Abrir pg_tileserv
-  </a>
-</h3>
-
-<div class="search-box">
-  <input type="text" id="busca" placeholder="Buscar nome..." />
-  <button onclick="buscar()">Buscar</button>
-</div>
-
-<div id="map"></div>
-
-<script>
-
-// MAPA
-var map = L.map('map').setView([-3.7, -40.3], 13);
-
-// BASE
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// força atualização automática
+function urlComCache(url) {
+  return url + "?t=" + new Date().getTime();
+}
 
 //////////////////////////////////////////
-// BAIRROS
+// 🟥 BAIRROS
 //////////////////////////////////////////
 
 var bairros = L.vectorGrid.protobuf(
-  "http://172.31.2.31:7800/public.vw_bairros/{z}/{x}/{y}.pbf",
+  urlComCache("http://172.31.2.31:7800/public.vw_bairros/{z}/{x}/{y}.pbf"),
   {
-    interactive: true,
+    interactive: false,
     vectorTileLayerStyles: {
       "vw_bairros": {
-        fillColor: "red",
-        fillOpacity: 0.3,
-        color: "black",
-        weight: 1
+        color: "rgba(228,26,28,1.0)",
+        weight: 2,
+        fill: false
       }
     }
   }
 );
 
-bairros.on('click', function(e) {
-  var props = e.layer.properties;
-  L.popup()
-    .setLatLng(e.latlng)
-    .setContent("Bairro: " + (props.nome_popul || "Sem nome"))
-    .openOn(map);
-});
-
 //////////////////////////////////////////
-// PRAÇAS
+// 🟩 PRAÇAS (com simbologia QGIS)
 //////////////////////////////////////////
 
 var pracas = L.vectorGrid.protobuf(
-  "http://172.31.2.31:7800/Pracas%20de%20Sobral.PRACAS_DE_SOBRAL/{z}/{x}/{y}.pbf",
+  urlComCache("http://172.31.2.31:7800/Pracas%20de%20Sobral.PRACAS_DE_SOBRAL/{z}/{x}/{y}.pbf"),
   {
     interactive: true,
     vectorTileLayerStyles: {
-      "PRACAS_DE_SOBRAL": {
-        fillColor: "green",
-        fillOpacity: 0.7,
-        color: "black",
-        weight: 1
+      "PRACAS_DE_SOBRAL": function(props) {
+
+        let cor = "rgba(69,210,111,1.0)";
+
+        switch(props.resposavel) {
+          case 'AURICELIO': cor = "rgba(84,38,200,1.0)"; break;
+          case 'BARACHO': cor = "rgba(60,166,211,1.0)"; break;
+          case 'BASTOS': cor = "rgba(179,212,94,1.0)"; break;
+          case 'GERARDO': cor = "rgba(203,84,169,1.0)"; break;
+          case 'MARCELO': cor = "rgba(216,90,40,1.0)"; break;
+        }
+
+        return {
+          color: "rgba(35,35,35,1.0)",
+          weight: 1,
+          fill: true,
+          fillColor: cor,
+          fillOpacity: 1
+        };
       }
     }
   }
 );
 
-pracas.on('click', function(e) {
-  var props = e.layer.properties;
+//////////////////////////////////////////
+// 💡 REGISTRO DE LUZ
+//////////////////////////////////////////
+
+var luz = L.vectorGrid.protobuf(
+  urlComCache("http://172.31.2.31:7800/Registros%20de%20%C3%81gua%20e%20Luz.Registro_de_Luz/{z}/{x}/{y}.pbf"),
+  {
+    interactive: true,
+    vectorTileLayerStyles: {
+      "Registro_de_Luz": {
+        radius: 5,
+        fillColor: "rgba(238,237,48,1.0)",
+        color: "rgba(128,17,25,1.0)",
+        weight: 2
+      }
+    }
+  }
+);
+
+//////////////////////////////////////////
+// 💧 REGISTRO DE ÁGUA
+//////////////////////////////////////////
+
+var agua = L.vectorGrid.protobuf(
+  urlComCache("http://172.31.2.31:7800/Registros%20de%20%C3%81gua%20e%20Luz.Registro_de_%C3%81gua/{z}/{x}/{y}.pbf"),
+  {
+    interactive: true,
+    vectorTileLayerStyles: {
+      "Registro_de_Água": {
+        radius: 5,
+        fillColor: "rgba(70,217,215,1.0)",
+        color: "rgba(50,87,128,1.0)",
+        weight: 2
+      }
+    }
+  }
+);
+
+//////////////////////////////////////////
+// POPUPS (mantidos)
+//////////////////////////////////////////
+
+luz.on('click', function(e) {
+  var p = e.layer.properties;
+
   L.popup()
     .setLatLng(e.latlng)
-    .setContent("Praça: " + (props.nome || "Sem nome"))
+    .setContent("Registro de Luz<br>" + (p.name || ""))
     .openOn(map);
 });
+
+agua.on('click', function(e) {
+  var p = e.layer.properties;
+
+  L.popup()
+    .setLatLng(e.latlng)
+    .setContent("Registro de Água<br>" + (p.local || ""))
+    .openOn(map);
+});
+
+//////////////////////////////////////////
+// BASE MAPS (mantidos 🔥)
+//////////////////////////////////////////
+
+var baseMaps = {
+  "Google Satellite": layer_GoogleSatellite_2,
+  "Google Road": layer_GoogleRoad_1,
+  "Waze": layer_WazeWorld_0
+};
 
 //////////////////////////////////////////
 // CONTROLE DE CAMADAS
 //////////////////////////////////////////
 
-var overlayMaps = {
+var overlays = {
   "Bairros": bairros,
-  "Praças": pracas
+  "Praças": pracas,
+  "Registro de Luz": luz,
+  "Registro de Água": agua
 };
 
-L.control.layers(null, overlayMaps).addTo(map);
+L.control.layers(baseMaps, overlays).addTo(map);
 
-// Adicionar no mapa
+// adicionar no mapa
 bairros.addTo(map);
 pracas.addTo(map);
-
-//////////////////////////////////////////
-// LEGENDA
-//////////////////////////////////////////
-
-var legenda = L.control({position: 'bottomright'});
-
-legenda.onAdd = function () {
-  var div = L.DomUtil.create('div', 'info legend');
-  div.innerHTML = `
-    <b>Legenda</b><br>
-    <span style="background:red;opacity:0.5;padding:5px;">&nbsp;</span> Bairros<br>
-    <span style="background:green;opacity:0.7;padding:5px;">&nbsp;</span> Praças
-  `;
-  return div;
-};
-
-legenda.addTo(map);
-
-//////////////////////////////////////////
-// BUSCA (simples)
-//////////////////////////////////////////
-
-function buscar() {
-  var texto = document.getElementById("busca").value.toLowerCase();
-
-  alert("Você buscou: " + texto + 
-  "\\n\\n(Para busca real no banco, precisa de API)");
-}
-
-</script>
-
-</body>
-</html>
+luz.addTo(map);
+agua.addTo(map);
