@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mapa Interativo - Sobral</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- VectorGrid -->
+  <script src="https://unpkg.com/leaflet.vectorgrid/dist/Leaflet.VectorGrid.min.js"></script>
+
+  <style>
+    #map { height: 85vh; }
+
+    .search-box {
+      position: absolute;
+      top: 10px;
+      left: 50px;
+      z-index: 1000;
+      background: white;
+      padding: 8px;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+
+<body>
+
+<h3>
+  <a href="http://172.31.2.31:7800" target="_blank">
+    Abrir pg_tileserv
+  </a>
+</h3>
+
+<div class="search-box">
+  <input type="text" id="busca" placeholder="Buscar nome..." />
+  <button onclick="buscar()">Buscar</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+
+// MAPA
+var map = L.map('map').setView([-3.7, -40.3], 13);
+
+// BASE
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+//////////////////////////////////////////
+// BAIRROS
+//////////////////////////////////////////
+
+var bairros = L.vectorGrid.protobuf(
+  "http://172.31.2.31:7800/public.vw_bairros/{z}/{x}/{y}.pbf",
+  {
+    interactive: true,
+    vectorTileLayerStyles: {
+      "vw_bairros": {
+        fillColor: "red",
+        fillOpacity: 0.3,
+        color: "black",
+        weight: 1
+      }
+    }
+  }
+);
+
+bairros.on('click', function(e) {
+  var props = e.layer.properties;
+  L.popup()
+    .setLatLng(e.latlng)
+    .setContent("Bairro: " + (props.nome_popul || "Sem nome"))
+    .openOn(map);
+});
+
+//////////////////////////////////////////
+// PRAÇAS
+//////////////////////////////////////////
+
+var pracas = L.vectorGrid.protobuf(
+  "http://172.31.2.31:7800/Pracas%20de%20Sobral.PRACAS_DE_SOBRAL/{z}/{x}/{y}.pbf",
+  {
+    interactive: true,
+    vectorTileLayerStyles: {
+      "PRACAS_DE_SOBRAL": {
+        fillColor: "green",
+        fillOpacity: 0.7,
+        color: "black",
+        weight: 1
+      }
+    }
+  }
+);
+
+pracas.on('click', function(e) {
+  var props = e.layer.properties;
+  L.popup()
+    .setLatLng(e.latlng)
+    .setContent("Praça: " + (props.nome || "Sem nome"))
+    .openOn(map);
+});
+
+//////////////////////////////////////////
+// CONTROLE DE CAMADAS
+//////////////////////////////////////////
+
+var overlayMaps = {
+  "Bairros": bairros,
+  "Praças": pracas
+};
+
+L.control.layers(null, overlayMaps).addTo(map);
+
+// Adicionar no mapa
+bairros.addTo(map);
+pracas.addTo(map);
+
+//////////////////////////////////////////
+// LEGENDA
+//////////////////////////////////////////
+
+var legenda = L.control({position: 'bottomright'});
+
+legenda.onAdd = function () {
+  var div = L.DomUtil.create('div', 'info legend');
+  div.innerHTML = `
+    <b>Legenda</b><br>
+    <span style="background:red;opacity:0.5;padding:5px;">&nbsp;</span> Bairros<br>
+    <span style="background:green;opacity:0.7;padding:5px;">&nbsp;</span> Praças
+  `;
+  return div;
+};
+
+legenda.addTo(map);
+
+//////////////////////////////////////////
+// BUSCA (simples)
+//////////////////////////////////////////
+
+function buscar() {
+  var texto = document.getElementById("busca").value.toLowerCase();
+
+  alert("Você buscou: " + texto + 
+  "\\n\\n(Para busca real no banco, precisa de API)");
+}
+
+</script>
+
+</body>
+</html>
