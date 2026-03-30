@@ -41,149 +41,91 @@
 
 <script>
 
-// ======================
 // MAPA
-// ======================
 var map = L.map('map').setView([-3.8, -40.3], 12);
 
-// ======================
-// BASE MAPS
-// ======================
-var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+// BASE
+var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 var satelite = L.tileLayer(
   'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 );
 
-// ======================
-// WMS (GeoServer)
-// ======================
-var pracas = L.tileLayer.wms(
+// WMS
+var wmsLayer = L.tileLayer.wms(
   "https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/wms",
   {
     layers: "AMA:vw_pracas",
     styles: "estilo-pracas",
     format: "image/png",
-    transparent: true,
-    version: "1.1.1"
+    transparent: true
   }
-);
+).addTo(map);
+
+// CONTROLE
+L.control.layers(
+  { "Mapa": osm, "Satélite": satelite },
+  { "Praças": wmsLayer }
+).addTo(map);
 
 // ======================
-// ADICIONAR AO MAPA
+// POPUP VIA WMS (SEM WFS)
 // ======================
-osm.addTo(map);
-pracas.addTo(map);
+map.on("click", function(e){
 
-// ======================
-// CONTROLE DE CAMADAS
-// ======================
-var baseMaps = {
-  "Mapa": osm,
-  "Satélite": satelite
-};
+  var url = "https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/wms?" +
+    "service=WMS&version=1.1.1&request=GetFeatureInfo" +
+    "&layers=AMA:vw_pracas" +
+    "&query_layers=AMA:vw_pracas" +
+    "&info_format=application/json" +
+    "&srs=EPSG:4326" +
+    "&bbox=" + map.getBounds().toBBoxString() +
+    "&width=" + map.getSize().x +
+    "&height=" + map.getSize().y +
+    "&x=" + Math.floor(e.containerPoint.x) +
+    "&y=" + Math.floor(e.containerPoint.y);
 
-var overlayMaps = {
-  "Praças": pracas
-};
+  fetch(url)
+  .then(res => res.json())
+  .then(data => {
 
-L.control.layers(baseMaps, overlayMaps).addTo(map);
+    if (data.features.length > 0) {
 
-// ======================
-// WFS (POPUP + CLIQUE)
-// ======================
-fetch("https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=AMA:vw_pracas&outputFormat=application/json")
-.then(res => res.json())
-.then(data => {
+      var props = data.features[0].properties;
 
-  var geojsonLayer = L.geoJSON(data, {
+      var nome = props.nome || "Sem nome";
+      var nome_popul = props.nome_popul || "Não informado";
+      var resposavel = props.resposavel || "Não informado";
 
-    // IMPORTANTE: precisa ser clicável
-    interactive: true,
+      L.popup()
+        .setLatLng(e.latlng)
+        .setContent(`
+          <b>${nome}</b><br>
+          Nome popular: ${nome_popul}<br>
+          Responsável: ${resposavel}
+        `)
+        .openOn(map);
 
-    style: function () {
-      return {
-        color: "#000000",
-        weight: 1,
-        fillOpacity: 0
-      };
-    },
-
-    onEachFeature: function (feature, layer) {
-
-      var nome = feature.properties.nome || "Sem nome";
-      var nome_popul = feature.properties.nome_popul || "Não informado";
-      var resposavel = feature.properties.resposavel || "Não informado";
-
-      layer.bindPopup(`
-        <div style="font-family: Arial; min-width: 200px;">
-          <h3 style="margin:0; color:#2c3e50;">${nome}</h3>
-          <p><b>Nome popular:</b><br>${nome_popul}</p>
-          <p><b>Responsável:</b><br>${resposavel}</p>
-        </div>
-      `);
-
-    }
-
-  }).addTo(map);
-
-  map.fitBounds(geojsonLayer.getBounds());
-
-  window.pracasLayer = geojsonLayer;
-
-});
-
-// ======================
-// BUSCA (CORRIGIDA)
-// ======================
-document.getElementById("busca").addEventListener("keyup", function () {
-
-  var texto = this.value.toLowerCase().trim();
-
-  if (!window.pracasLayer) return;
-
-  var encontrou = false;
-
-  window.pracasLayer.eachLayer(function (layer) {
-
-    var props = layer.feature.properties;
-
-    var nome = (props.nome || "").toLowerCase();
-    var nome_popul = (props.nome_popul || "").toLowerCase();
-
-    // reset
-    layer.setStyle({
-      color: "#000000",
-      weight: 1,
-      fillOpacity: 0
-    });
-
-    if (texto !== "" && (nome.includes(texto) || nome_popul.includes(texto))) {
-
-      encontrou = true;
-
-      layer.setStyle({
-        color: "red",
-        weight: 3,
-        fillColor: "yellow",
-        fillOpacity: 0.5
-      });
-
-      map.fitBounds(layer.getBounds());
-      layer.openPopup();
     }
 
   });
 
-  if (texto === "") {
-    map.setView([-3.8, -40.3], 12);
+});
+
+// ======================
+// BUSCA SIMPLES (zoom manual)
+// ======================
+document.getElementById("busca").addEventListener("keypress", function(e){
+
+  if (e.key === "Enter") {
+
+    alert("Use o clique no mapa para identificar a praça.\n\n(A busca avançada precisa do WFS com CORS liberado)");
+
   }
 
 });
 
-// ======================
 // LEGENDA
-// ======================
 var legenda = L.control({position: 'bottomright'});
 
 legenda.onAdd = function () {
