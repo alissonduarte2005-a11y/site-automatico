@@ -5,23 +5,38 @@
   <title>Mapa de Praças</title>
 
   <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
     body { margin: 0; }
     #map { height: 100vh; }
 
+    /* Popup */
     .popup {
       font-family: Arial;
+      min-width: 180px;
     }
 
     .popup h3 {
       margin: 0;
       color: #2c3e50;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 5px;
     }
 
     .popup p {
-      margin: 3px 0;
+      margin: 8px 0;
+    }
+
+    /* Legenda */
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      right: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -34,23 +49,59 @@
 
 <script>
 
-// Criar mapa
+// ======================
+// MAPA
+// ======================
 var map = L.map('map').setView([-3.8, -40.3], 12);
 
-// 🛰️ BASE (OpenStreetMap)
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap'
-}).addTo(map);
+// ======================
+// BASE MAPS
+// ======================
 
-// 🗺️ WMS (GeoServer - cores do seu estilo)
-L.tileLayer.wms("http://172.31.2.42:8080/geoserver/AMA/wms", {
+// OpenStreetMap
+var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+});
+
+// Satélite
+var satelite = L.tileLayer(
+  'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Esri' }
+);
+
+// ======================
+// WMS (GeoServer - cores)
+// ======================
+var pracas = L.tileLayer.wms("http://172.31.2.42:8080/geoserver/AMA/wms", {
   layers: "AMA:vw_pracas",
   styles: "estilo-pracas",
   format: "image/png",
   transparent: true
-}).addTo(map);
+});
 
-// 📊 WFS (dados + popup)
+// ======================
+// ADICIONAR AO MAPA
+// ======================
+osm.addTo(map);
+pracas.addTo(map);
+
+// ======================
+// CONTROLE DE CAMADAS
+// ======================
+var baseMaps = {
+  "Mapa": osm,
+  "Satélite": satelite
+};
+
+var overlayMaps = {
+  "Praças": pracas
+};
+
+L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+// ======================
+// WFS (POPUP)
+// ======================
 fetch("http://172.31.2.42:8080/geoserver/AMA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=AMA:vw_pracas&outputFormat=application/json")
 .then(response => response.json())
 .then(data => {
@@ -65,7 +116,7 @@ fetch("http://172.31.2.42:8080/geoserver/AMA/ows?service=WFS&version=1.0.0&reque
       layer.bindPopup(`
         <div class="popup">
           <h3>${nome}</h3>
-          <p><b>Nome popular:</b> ${nome_popul}</p>
+          <p><b>Nome popular:</b><br>${nome_popul}</p>
         </div>
       `);
 
@@ -75,7 +126,28 @@ fetch("http://172.31.2.42:8080/geoserver/AMA/ows?service=WFS&version=1.0.0&reque
 
   geojson.addTo(map);
 
+  // Zoom automático
+  map.fitBounds(geojson.getBounds());
+
 });
+
+// ======================
+// LEGENDA AUTOMÁTICA
+// ======================
+var legenda = L.control({position: 'bottomright'});
+
+legenda.onAdd = function () {
+  var div = L.DomUtil.create('div', 'legend');
+
+  div.innerHTML = `
+    <b>Legenda</b><br>
+    <img src="http://172.31.2.42:8080/geoserver/AMA/wms?REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=AMA:vw_pracas&STYLE=estilo-pracas">
+  `;
+
+  return div;
+};
+
+legenda.addTo(map);
 
 </script>
 
