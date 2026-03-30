@@ -10,22 +10,6 @@
     body { margin: 0; }
     #map { height: 100vh; }
 
-    .popup {
-      font-family: Arial;
-      min-width: 180px;
-    }
-
-    .popup h3 {
-      margin: 0;
-      color: #2c3e50;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 5px;
-    }
-
-    .popup p {
-      margin: 8px 0;
-    }
-
     .legend {
       position: absolute;
       bottom: 20px;
@@ -35,9 +19,22 @@
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
+
+    #busca {
+      position: absolute;
+      top: 10px;
+      left: 50px;
+      z-index: 1000;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      width: 250px;
+    }
   </style>
 </head>
 <body>
+
+<input type="text" id="busca" placeholder="Buscar praça...">
 
 <div id="map"></div>
 
@@ -68,7 +65,8 @@ var pracas = L.tileLayer.wms(
     layers: "AMA:vw_pracas",
     styles: "estilo-pracas",
     format: "image/png",
-    transparent: true
+    transparent: true,
+    version: "1.1.1"
   }
 );
 
@@ -93,33 +91,78 @@ var overlayMaps = {
 L.control.layers(baseMaps, overlayMaps).addTo(map);
 
 // ======================
-// WFS (POPUP)
+// WFS (POPUP + BUSCA)
 // ======================
 fetch("https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=AMA:vw_pracas&outputFormat=application/json")
-.then(response => response.json())
+.then(res => res.json())
 .then(data => {
 
-  var geojson = L.geoJSON(data, {
+  var geojsonLayer = L.geoJSON(data, {
+
+    style: {
+      color: "transparent",
+      fillOpacity: 0
+    },
 
     onEachFeature: function (feature, layer) {
 
       var nome = feature.properties.nome || "Sem nome";
       var nome_popul = feature.properties.nome_popul || "Não informado";
+      var resposavel = feature.properties.resposavel || "Não informado";
 
       layer.bindPopup(`
-        <div class="popup">
-          <h3>${nome}</h3>
+        <div style="font-family: Arial; min-width: 200px;">
+          <h3 style="margin:0; color:#2c3e50;">${nome}</h3>
           <p><b>Nome popular:</b><br>${nome_popul}</p>
+          <p><b>Responsável:</b><br>${resposavel}</p>
         </div>
       `);
 
     }
 
+  }).addTo(map);
+
+  map.fitBounds(geojsonLayer.getBounds());
+
+  // salvar global
+  window.pracasLayer = geojsonLayer;
+
+});
+
+// ======================
+// BUSCA
+// ======================
+document.getElementById("busca").addEventListener("keyup", function () {
+
+  var texto = this.value.toLowerCase();
+
+  window.pracasLayer.eachLayer(function (layer) {
+
+    var props = layer.feature.properties;
+
+    var nome = (props.nome || "").toLowerCase();
+    var nome_popul = (props.nome_popul || "").toLowerCase();
+
+    if (nome.includes(texto) || nome_popul.includes(texto)) {
+
+      layer.setStyle({
+        color: "yellow",
+        weight: 3,
+        fillOpacity: 0.3
+      });
+
+      map.fitBounds(layer.getBounds());
+
+    } else {
+
+      layer.setStyle({
+        color: "transparent",
+        fillOpacity: 0
+      });
+
+    }
+
   });
-
-  geojson.addTo(map);
-
-  map.fitBounds(geojson.getBounds());
 
 });
 
