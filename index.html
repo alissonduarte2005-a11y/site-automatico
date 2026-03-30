@@ -58,7 +58,8 @@ var wmsLayer = L.tileLayer.wms(
     layers: "AMA:vw_pracas",
     styles: "estilo-pracas",
     format: "image/png",
-    transparent: true
+    transparent: true,
+    version: "1.1.1"
   }
 ).addTo(map);
 
@@ -69,27 +70,40 @@ L.control.layers(
 ).addTo(map);
 
 // ======================
-// POPUP VIA WMS (SEM WFS)
+// POPUP CORRIGIDO (AGORA FUNCIONA)
 // ======================
 map.on("click", function(e){
 
-  var url = "https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/wms?" +
-    "service=WMS&version=1.1.1&request=GetFeatureInfo" +
-    "&layers=AMA:vw_pracas" +
-    "&query_layers=AMA:vw_pracas" +
-    "&info_format=application/json" +
-    "&srs=EPSG:4326" +
-    "&bbox=" + map.getBounds().toBBoxString() +
-    "&width=" + map.getSize().x +
-    "&height=" + map.getSize().y +
-    "&x=" + Math.floor(e.containerPoint.x) +
-    "&y=" + Math.floor(e.containerPoint.y);
+  var bbox = map.getBounds().toBBoxString();
+  var size = map.getSize();
+
+  var params = {
+    service: "WMS",
+    request: "GetFeatureInfo",
+    srs: "EPSG:4326",
+    styles: "",
+    transparent: true,
+    version: "1.1.1",
+    format: "image/png",
+    bbox: bbox,
+    height: size.y,
+    width: size.x,
+    layers: "AMA:vw_pracas",
+    query_layers: "AMA:vw_pracas",
+    info_format: "application/json",
+    x: Math.floor(e.containerPoint.x),
+    y: Math.floor(e.containerPoint.y)
+  };
+
+  var url = "https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/wms?" + new URLSearchParams(params);
 
   fetch(url)
   .then(res => res.json())
   .then(data => {
 
-    if (data.features.length > 0) {
+    console.log(data);
+
+    if (data.features && data.features.length > 0) {
 
       var props = data.features[0].properties;
 
@@ -106,21 +120,24 @@ map.on("click", function(e){
         `)
         .openOn(map);
 
+    } else {
+      console.log("Nenhuma feição encontrada");
     }
 
+  })
+  .catch(err => {
+    console.error("Erro no GetFeatureInfo:", err);
   });
 
 });
 
 // ======================
-// BUSCA SIMPLES (zoom manual)
+// BUSCA (TEMPORÁRIA)
 // ======================
 document.getElementById("busca").addEventListener("keypress", function(e){
 
   if (e.key === "Enter") {
-
-    alert("Use o clique no mapa para identificar a praça.\n\n(A busca avançada precisa do WFS com CORS liberado)");
-
+    alert("Clique no mapa para ver os dados da praça.\n\n(A busca completa precisa do WFS com CORS liberado)");
   }
 
 });
