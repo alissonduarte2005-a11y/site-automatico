@@ -10,16 +10,6 @@
     body { margin: 0; }
     #map { height: 100vh; }
 
-    .legend {
-      position: absolute;
-      bottom: 20px;
-      right: 10px;
-      background: white;
-      padding: 10px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
-
     #busca {
       position: absolute;
       top: 10px;
@@ -30,12 +20,21 @@
       border: 1px solid #ccc;
       width: 250px;
     }
+
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      right: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
 
 <input type="text" id="busca" placeholder="Buscar praça...">
-
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -91,7 +90,7 @@ var overlayMaps = {
 L.control.layers(baseMaps, overlayMaps).addTo(map);
 
 // ======================
-// WFS (POPUP + BUSCA)
+// WFS (POPUP + CLIQUE)
 // ======================
 fetch("https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=AMA:vw_pracas&outputFormat=application/json")
 .then(res => res.json())
@@ -99,9 +98,15 @@ fetch("https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/o
 
   var geojsonLayer = L.geoJSON(data, {
 
-    style: {
-      color: "transparent",
-      fillOpacity: 0
+    // IMPORTANTE: precisa ser clicável
+    interactive: true,
+
+    style: function () {
+      return {
+        color: "#000000",
+        weight: 1,
+        fillOpacity: 0
+      };
     },
 
     onEachFeature: function (feature, layer) {
@@ -124,17 +129,20 @@ fetch("https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/o
 
   map.fitBounds(geojsonLayer.getBounds());
 
-  // salvar global
   window.pracasLayer = geojsonLayer;
 
 });
 
 // ======================
-// BUSCA
+// BUSCA (CORRIGIDA)
 // ======================
 document.getElementById("busca").addEventListener("keyup", function () {
 
-  var texto = this.value.toLowerCase();
+  var texto = this.value.toLowerCase().trim();
+
+  if (!window.pracasLayer) return;
+
+  var encontrou = false;
 
   window.pracasLayer.eachLayer(function (layer) {
 
@@ -143,26 +151,33 @@ document.getElementById("busca").addEventListener("keyup", function () {
     var nome = (props.nome || "").toLowerCase();
     var nome_popul = (props.nome_popul || "").toLowerCase();
 
-    if (nome.includes(texto) || nome_popul.includes(texto)) {
+    // reset
+    layer.setStyle({
+      color: "#000000",
+      weight: 1,
+      fillOpacity: 0
+    });
+
+    if (texto !== "" && (nome.includes(texto) || nome_popul.includes(texto))) {
+
+      encontrou = true;
 
       layer.setStyle({
-        color: "yellow",
+        color: "red",
         weight: 3,
-        fillOpacity: 0.3
+        fillColor: "yellow",
+        fillOpacity: 0.5
       });
 
       map.fitBounds(layer.getBounds());
-
-    } else {
-
-      layer.setStyle({
-        color: "transparent",
-        fillOpacity: 0
-      });
-
+      layer.openPopup();
     }
 
   });
+
+  if (texto === "") {
+    map.setView([-3.8, -40.3], 12);
+  }
 
 });
 
