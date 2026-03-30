@@ -70,7 +70,7 @@ L.control.layers(
 ).addTo(map);
 
 // ======================
-// 🔥 POPUP FUNCIONANDO (EPSG:3857)
+// 🔥 POPUP COM BUFFER (FUNCIONA MESMO)
 // ======================
 map.on("click", function(e){
 
@@ -97,6 +97,11 @@ map.on("click", function(e){
     srs: "EPSG:3857",
     format: "image/png",
     info_format: "application/json",
+
+    // 🔥 AJUSTE QUE RESOLVE
+    feature_count: 10,
+    buffer: 10,
+
     x: Math.floor(point.x),
     y: Math.floor(point.y)
   };
@@ -113,21 +118,17 @@ map.on("click", function(e){
 
       var props = data.features[0].properties;
 
-      var nome = props.nome || "Sem nome";
-      var nome_popul = props.nome_popul || "Não informado";
-      var resposavel = props.resposavel || "Não informado";
-
       L.popup()
         .setLatLng(e.latlng)
         .setContent(`
-          <b>${nome}</b><br>
-          Nome popular: ${nome_popul}<br>
-          Responsável: ${resposavel}
+          <b>${props.nome || "Sem nome"}</b><br>
+          Nome popular: ${props.nome_popul || "Não informado"}<br>
+          Responsável: ${props.resposavel || "Não informado"}
         `)
         .openOn(map);
 
     } else {
-      console.log("Clique fora da feição");
+      console.log("Nenhuma feição encontrada (mesmo com buffer)");
     }
 
   })
