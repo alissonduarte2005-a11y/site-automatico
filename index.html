@@ -63,36 +63,42 @@ var wmsLayer = L.tileLayer.wms(
   }
 ).addTo(map);
 
-// CONTROLE
+// CONTROLE DE CAMADAS
 L.control.layers(
   { "Mapa": osm, "Satélite": satelite },
   { "Praças": wmsLayer }
 ).addTo(map);
 
 // ======================
-// POPUP CORRIGIDO (AGORA FUNCIONA)
+// 🔥 POPUP FUNCIONANDO (EPSG:3857)
 // ======================
 map.on("click", function(e){
 
-  var bbox = map.getBounds().toBBoxString();
   var size = map.getSize();
+  var bounds = map.getBounds();
+
+  var sw = map.options.crs.project(bounds.getSouthWest());
+  var ne = map.options.crs.project(bounds.getNorthEast());
+
+  var bbox = sw.x + "," + sw.y + "," + ne.x + "," + ne.y;
+
+  var point = map.latLngToContainerPoint(e.latlng, map.getZoom());
 
   var params = {
     service: "WMS",
     request: "GetFeatureInfo",
-    srs: "EPSG:4326",
-    styles: "",
-    transparent: true,
     version: "1.1.1",
-    format: "image/png",
-    bbox: bbox,
-    height: size.y,
-    width: size.x,
     layers: "AMA:vw_pracas",
     query_layers: "AMA:vw_pracas",
+    styles: "",
+    bbox: bbox,
+    width: size.x,
+    height: size.y,
+    srs: "EPSG:3857",
+    format: "image/png",
     info_format: "application/json",
-    x: Math.floor(e.containerPoint.x),
-    y: Math.floor(e.containerPoint.y)
+    x: Math.floor(point.x),
+    y: Math.floor(point.y)
   };
 
   var url = "https://derangeable-ameer-chronoscopically.ngrok-free.dev/geoserver/AMA/wms?" + new URLSearchParams(params);
@@ -121,25 +127,21 @@ map.on("click", function(e){
         .openOn(map);
 
     } else {
-      console.log("Nenhuma feição encontrada");
+      console.log("Clique fora da feição");
     }
 
   })
   .catch(err => {
-    console.error("Erro no GetFeatureInfo:", err);
+    console.error("Erro:", err);
   });
 
 });
 
-// ======================
-// BUSCA (TEMPORÁRIA)
-// ======================
+// BUSCA (informativa)
 document.getElementById("busca").addEventListener("keypress", function(e){
-
   if (e.key === "Enter") {
-    alert("Clique no mapa para ver os dados da praça.\n\n(A busca completa precisa do WFS com CORS liberado)");
+    alert("Clique na praça para visualizar os dados.\n\nBusca completa precisa de WFS + CORS.");
   }
-
 });
 
 // LEGENDA
