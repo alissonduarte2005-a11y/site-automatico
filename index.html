@@ -1,49 +1,82 @@
-function urlComCache(url) {
-  return url + "?t=" + new Date().getTime();
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa de Praças</title>
 
-//////////////////////////////////////////
-// 💡 REGISTRO DE LUZ (amarelo)
-//////////////////////////////////////////
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
-var luz = L.vectorGrid.protobuf(
-  urlComCache("http://172.31.2.31:7800/Registros%20de%20%C3%81gua%20e%20Luz.Registro_de_Luz/{z}/{x}/{y}.pbf"),
-  {
-    interactive: true,
-    vectorTileLayerStyles: {
-      Registro_de_Luz: {
-        fill: true,
-        fillColor: "yellow",
-        fillOpacity: 1,
-        color: "black",
-        weight: 1,
-        radius: 6
-      }
+  <style>
+    body { margin: 0; }
+    #map { height: 100vh; }
+
+    .popup {
+      font-family: Arial;
     }
-  }
-);
 
-//////////////////////////////////////////
-// 💧 REGISTRO DE ÁGUA (azul)
-//////////////////////////////////////////
-
-var agua = L.vectorGrid.protobuf(
-  urlComCache("http://172.31.2.31:7800/Registros%20de%20%C3%81gua%20e%20Luz.Registro_de_%C3%81gua/{z}/{x}/{y}.pbf"),
-  {
-    interactive: true,
-    vectorTileLayerStyles: {
-      Registro_de_Água: {
-        fill: true,
-        fillColor: "blue",
-        fillOpacity: 1,
-        color: "black",
-        weight: 1,
-        radius: 6
-      }
+    .popup h3 {
+      margin: 0;
+      color: #2c3e50;
     }
-  }
-);
 
-// adicionar no mapa
-luz.addTo(map);
-agua.addTo(map);
+    .popup p {
+      margin: 3px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+// Criar mapa
+var map = L.map('map').setView([-3.8, -40.3], 12);
+
+// 🛰️ BASE (OpenStreetMap)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// 🗺️ WMS (GeoServer - cores do seu estilo)
+L.tileLayer.wms("http://172.31.2.42:8080/geoserver/AMA/wms", {
+  layers: "AMA:vw_pracas",
+  format: "image/png",
+  transparent: true
+}).addTo(map);
+
+// 📊 WFS (dados + popup)
+fetch("http://172.31.2.42:8080/geoserver/AMA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=AMA:vw_pracas&outputFormat=application/json")
+.then(response => response.json())
+.then(data => {
+
+  var geojson = L.geoJSON(data, {
+
+    onEachFeature: function (feature, layer) {
+
+      var nome = feature.properties.nome || "Sem nome";
+      var nome_popul = feature.properties.nome_popul || "Não informado";
+
+      layer.bindPopup(`
+        <div class="popup">
+          <h3>${nome}</h3>
+          <p><b>Nome popular:</b> ${nome_popul}</p>
+        </div>
+      `);
+
+    }
+
+  });
+
+  geojson.addTo(map);
+
+});
+
+</script>
+
+</body>
+</html>
