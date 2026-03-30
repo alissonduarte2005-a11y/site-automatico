@@ -45,6 +45,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // 🗺️ WMS (GeoServer - cores do seu estilo)
 L.tileLayer.wms("http://172.31.2.42:8080/geoserver/AMA/wms", {
   layers: "AMA:vw_pracas",
+  styles: "estilo-pracas",
   format: "image/png",
   transparent: true
 }).addTo(map);
